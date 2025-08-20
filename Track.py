@@ -88,7 +88,25 @@ while True:
     elif speed_check == 'n':
         speed_check = False
         break
+      
+while True:
+    traffic_count = str(input("Turn on traffic counting [y/n] : "))
+    if traffic_count == 'y':
+        traffic_count = True
+        break
+    elif traffic_count == 'n':
+        traffic_count = False
+        break
 
+while True:
+    save_vehicle_ids = str(input("Save vehicle IDs that pass lines [y/n] : "))
+    if save_vehicle_ids == 'y':
+        save_vehicle_ids = True
+        break
+    elif save_vehicle_ids == 'n':
+        save_vehicle_ids = False
+        break
+      
 while True:
     video_write = str(input("write the result video [y/n] : "))
     if video_write == 'y':
@@ -98,26 +116,33 @@ while True:
         video_write = False
         break
 
-line_path = os.path.join(tr_dir, 'input', 'line.txt')  # 또는 절대 경로 지정
-line_list = []
-
-with open(line_path, 'r') as f:
-    for line in f:
-        try:
-            line = line.strip()
-            # 한 줄이 "(x1, y1), (x2, y2)" 형식일 때 그대로 튜플 2개로 나누기
-            if line.count('(') == 2 and line.count(')') == 2:
-                left, right = line.split('),')
-                left = ast.literal_eval(left.strip() + ')')  # 보정해서 닫기
-                right = ast.literal_eval(right.strip())
-                line_list.append([left, right])
-            else:
-                print(f"⚠️ 무시된 줄: {line}")
-        except Exception as e:
-            print(f"⚠️ 파싱 실패: {line} → {e}")
-
-line_num = len(line_list)
-counter_t = np.zeros((line_num,class_num))
+if traffic_count == True:
+    line_path = os.path.join(tr_dir, 'input', 'line.txt')
+    line_list = []
+    
+    with open(line_path, 'r') as f:
+        for line in f:
+            try:
+                line = line.strip()
+                if line.count('(') == 2 and line.count(')') == 2:
+                    left, right = line.split('),')
+                    left = ast.literal_eval(left.strip() + ')')
+                    right = ast.literal_eval(right.strip())
+                    line_list.append([left, right])
+                else:
+                    print(f"⚠️ 무시된 줄: {line}")
+            except Exception as e:
+                print(f"⚠️ 파싱 실패: {line} → {e}")
+    
+    line_num = len(line_list)
+    counter_t = np.zeros((line_num, class_num))
+    
+    # Vehicle ID 저장을 위한 초기화
+    if save_vehicle_ids == True:
+        vehicle_ids_per_line = [[] for _ in range(line_num)]  # 각 라인별 통과 차량 ID 리스트
+else:
+    line_num = 0
+    counter_t = None
 
 if speed_check == True:
     t_list = []
@@ -854,26 +879,47 @@ while True:
 
                         cv2.line(frame, p0, p1, color, 6)
 
-                        counter_ = 0
-                        for ln in range(line_num):
-                            if intersect(p0, p1, line_list[ln][0], line_list[ln][1]):
-                                if cl == 0:
-                                    counter_t[ln][0] += 1
-                                if cl == 1:
-                                    counter_t[ln][1] += 1
-                                if cl == 2:
-                                    counter_t[ln][2] += 1
-                                if cl == 3:
-                                    counter_t[ln][3] += 1
-                                if cl == 4:
-                                    counter_t[ln][4] += 1
-
-                                counter_ += 1
-                            if counter_ >= 1:
-                                passed.append(indexIDs[i])
-
-                            if len(passed) > 100:
-                                passed.pop(0)
+                        if traffic_count == True:
+                            counter_ = 0
+                            for ln in range(line_num):
+                                if intersect(p0, p1, line_list[ln][0], line_list[ln][1]):
+                                    # 차종별 카운트
+                                    if cl == 0:
+                                        counter_t[ln][0] += 1
+                                    elif cl == 1:
+                                        counter_t[ln][1] += 1
+                                    elif cl == 2:
+                                        counter_t[ln][2] += 1
+                                    elif cl == 3:
+                                        counter_t[ln][3] += 1
+                                    elif cl == 4:
+                                        counter_t[ln][4] += 1
+                                    
+                                    # Vehicle ID 저장
+                                    if save_vehicle_ids == True:
+                                        vehicle_ids_per_line[ln].append({
+                                            'vehicle_id': indexIDs[i],
+                                            'class': cl,
+                                            'frame': frameIndex,
+                                            'timestamp': frameIndex / fps  # 초 단위 시간
+                                        })
+                                        
+                                        # 프레임별 교차 정보도 저장
+                                        vehicle_crossing_data.append({
+                                            'frame': frameIndex,
+                                            'line': ln,
+                                            'vehicle_id': indexIDs[i],
+                                            'class': cl,
+                                            'position': (p0, p1)
+                                        })
+                                    
+                                    counter_ += 1
+                                    
+                                if counter_ >= 1:
+                                    passed.append(indexIDs[i])
+                                    
+                                if len(passed) > 100:
+                                    passed.pop(0)
                 text = "{}".format(indexIDs[i])
                 cv2.putText(frame, text, (x, y - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1)
 

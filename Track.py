@@ -140,6 +140,7 @@ if traffic_count == True:
     # Vehicle ID 저장을 위한 초기화
     if save_vehicle_ids == True:
         vehicle_ids_per_line = [[] for _ in range(line_num)]  # 각 라인별 통과 차량 ID 리스트
+        vehicle_crossing_data = []
 else:
     line_num = 0
     counter_t = None

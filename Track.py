@@ -968,6 +968,33 @@ while True:
 
 
 print("[INFO] cleaning up...")
+
+# 라인별 통과 차량 ID 저장
+if traffic_count == True and save_vehicle_ids == True:
+    # Pickle 파일로 저장
+    with open(os.path.join(tr_dir, 'output', 'vehicle_ids_per_line.pkl'), 'wb') as f:
+        pickle.dump(vehicle_ids_per_line, f)
+    
+    # JSON 파일로도 저장 (읽기 쉽게)
+    import json
+    
+    # 라인별 통과 차량 요약
+    summary = {}
+    for ln in range(line_num):
+        unique_vehicles = list(set([v['vehicle_id'] for v in vehicle_ids_per_line[ln]]))
+        summary[f'line_{ln}'] = {
+            'total_count': len(vehicle_ids_per_line[ln]),  # 총 통과 횟수
+            'unique_vehicles': len(unique_vehicles),  # 고유 차량 수
+            'vehicle_ids': unique_vehicles  # 차량 ID 리스트
+        }
+    
+    with open(os.path.join(tr_dir, 'output', 'line_crossing_summary.json'), 'w') as f:
+        json.dump(summary, f, indent=2)
+    
+    print(f"[INFO] Vehicle ID data saved to {tr_dir}/output/")
+    print(f"[INFO] - vehicle_ids_per_line.pkl")
+    print(f"[INFO] - line_crossing_summary.json")
+  
 if video_write == True:
     writer.release()
 
